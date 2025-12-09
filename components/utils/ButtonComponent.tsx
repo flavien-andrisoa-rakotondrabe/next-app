@@ -9,7 +9,7 @@ export default function ButtonComponent({ dark, label }: ButtonProps) {
   return (
     <div className="flex justify-center">
       <div className="w-max flex flex-col items-center gap-3">
-        <button className="relative fade-in text-white bg-[#2323FE] hover:bg-[#3030FF] flex justify-center items-center h-[60px] w-full rounded-xl gap-3 transition-all duration-150 cursor-pointer">
+        <button className="relative fade-in text-white bg-(--primary-color) flex justify-center items-center h-[60px] w-full rounded-xl gap-3 transition-all duration-150 cursor-pointer">
           <p className="text-[18px] font-semibold">{label}</p>
           <svg
             height="20"

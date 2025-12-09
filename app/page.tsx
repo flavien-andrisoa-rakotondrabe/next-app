@@ -27,7 +27,7 @@ export default function Home() {
 
   return (
     <div className="text-white">
-      <div className="z-50 fixed top-0 left-0 w-full flex justify-center items-center bg-[#2323FE] h-[36px]">
+      <div className="z-50 fixed top-0 left-0 w-full flex justify-center items-center bg-(--primary-color) h-[36px]">
         <p className="font-medium tracking-wider">
           30% OFF if you order in the next{' '}
           <span className="font-bold tracking-wider">08 </span> :{' '}
@@ -141,7 +141,7 @@ export default function Home() {
                     <h2 className="text-center text-[48px] leading-[58px] font-semibold">
                       Get Peace of Mind <br />
                       With{' '}
-                      <span className="text-[48px] font-semibold text-[#2323FE]">
+                      <span className="text-[48px] font-semibold text-(--primary-color)">
                         My Doctors Note
                       </span>
                     </h2>
