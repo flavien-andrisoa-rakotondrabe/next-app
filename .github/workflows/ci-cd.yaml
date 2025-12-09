@@ -3,23 +3,20 @@ name: CI/CD Next.js -> Kubernetes
 on:
   pull_request:
     branches: ["main"]
-    types: [opened, synchronize, reopened] # CI (tests seulement)
+    types: [opened, synchronize, reopened]
 
   push:
-    branches: ["main"] # CD (build + deploy)
+    branches: ["main"]
 
 env:
   DOCKER_IMAGE: flavienrak/next-app
 
 jobs:
-  # ======================================================
-  # 1️⃣ JOB CI : TEST pendant les Pull Requests
-  # ======================================================
   test:
     runs-on: ubuntu-latest
 
-    # CI uniquement pendant les PR
-    if: github.event_name == 'pull_request'
+    # Test pendant PR ET pendant push
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v3
@@ -34,14 +31,10 @@ jobs:
       - name: Run tests
         run: npm test
 
-  # ======================================================
-  # 2️⃣ JOB CD : BUILD (uniquement après merge)
-  # ======================================================
   build:
     runs-on: self-hosted
     needs: test
 
-    # CD uniquement pour push sur main
     if: github.event_name == 'push'
 
     steps:
@@ -63,14 +56,10 @@ jobs:
           docker push $DOCKER_IMAGE:${{ github.sha }}
           docker push $DOCKER_IMAGE:latest
 
-  # ======================================================
-  # 3️⃣ JOB CD : DEPLOY (uniquement après merge)
-  # ======================================================
   deploy:
     runs-on: self-hosted
     needs: build
 
-    # CD seulement après merge !
     if: github.event_name == 'push'
 
     steps:
@@ -87,7 +76,6 @@ jobs:
             nextjs=$DOCKER_IMAGE:${{ github.sha }} --record
 
       - name: Rollout status
-        id: rollout
         run: |
           kubectl rollout status deployment/nextjs-deployment --timeout=120s
 
