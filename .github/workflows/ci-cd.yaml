@@ -1,0 +1,98 @@
+name: CI/CD Next.js -> Kubernetes
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, synchronize, reopened] # CI (tests seulement)
+
+  push:
+    branches: ["main"] # CD (build + deploy)
+
+env:
+  DOCKER_IMAGE: flavienrak/next-app
+
+jobs:
+  # ======================================================
+  # 1️⃣ JOB CI : TEST pendant les Pull Requests
+  # ======================================================
+  test:
+    runs-on: ubuntu-latest
+
+    # CI uniquement pendant les PR
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+  # ======================================================
+  # 2️⃣ JOB CD : BUILD (uniquement après merge)
+  # ======================================================
+  build:
+    runs-on: self-hosted
+    needs: test
+
+    # CD uniquement pour push sur main
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build --pull -t $DOCKER_IMAGE:${{ github.sha }} .
+          docker tag $DOCKER_IMAGE:${{ github.sha }} $DOCKER_IMAGE:latest
+
+      - name: Push Docker image
+        run: |
+          docker push $DOCKER_IMAGE:${{ github.sha }}
+          docker push $DOCKER_IMAGE:latest
+
+  # ======================================================
+  # 3️⃣ JOB CD : DEPLOY (uniquement après merge)
+  # ======================================================
+  deploy:
+    runs-on: self-hosted
+    needs: build
+
+    # CD seulement après merge !
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl set image deployment/nextjs-deployment \
+            nextjs=$DOCKER_IMAGE:${{ github.sha }} --record
+
+      - name: Rollout status
+        id: rollout
+        run: |
+          kubectl rollout status deployment/nextjs-deployment --timeout=120s
+
+      - name: Rollback if failed
+        if: failure()
+        run: |
+          echo "❌ Échec du déploiement. Rollback..."
+          kubectl rollout undo deployment/nextjs-deployment
