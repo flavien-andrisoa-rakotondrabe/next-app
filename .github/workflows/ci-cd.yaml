@@ -12,14 +12,11 @@ env:
   DOCKER_IMAGE: flavienrak/next-app
 
 jobs:
-  # ======================================================
-  # 1️⃣ JOB TEST : exécuté pendant PR + pendant merge
-  # ======================================================
   test:
     runs-on: ubuntu-latest
 
-    # IMPORTANT : condition valide
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+    # Test CI & CD
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v3
@@ -34,15 +31,11 @@ jobs:
       - name: Run tests
         run: npm test
 
-  # ======================================================
-  # 2️⃣ JOB BUILD : exécuté uniquement après merge
-  # ======================================================
   build:
     runs-on: self-hosted
     needs: test
 
-    # IMPORTANT : condition correcte
-    if: ${{ github.event_name == 'push' }}
+    if: github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v3
@@ -63,15 +56,11 @@ jobs:
           docker push $DOCKER_IMAGE:${{ github.sha }}
           docker push $DOCKER_IMAGE:latest
 
-  # ======================================================
-  # 3️⃣ JOB DEPLOY : exécuté uniquement après merge
-  # ======================================================
   deploy:
     runs-on: self-hosted
     needs: build
 
-    # IMPORTANT : condition correcte
-    if: ${{ github.event_name == 'push' }}
+    if: github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v3
