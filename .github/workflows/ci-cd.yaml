@@ -77,7 +77,7 @@ jobs:
 
       - name: Rollout status
         run: |
-          kubectl rollout status deployment/nextjs-deployment --timeout=120s
+          kubectl rollout status deployment/nextjs-deployment --timeout=300s
 
       - name: Rollback if failed
         if: failure()
