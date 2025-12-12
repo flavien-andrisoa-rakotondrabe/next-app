@@ -3,46 +3,23 @@ kind: Deployment
 metadata:
   name: traefik
   namespace: traefik
-  labels:
-    app.kubernetes.io/name: traefik
-    app.kubernetes.io/instance: traefik-traefik
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: traefik
-      app.kubernetes.io/instance: traefik-traefik
+      app: traefik
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: traefik
-        app.kubernetes.io/instance: traefik-traefik
+        app: traefik
     spec:
       containers:
         - name: traefik
-          image: traefik:v2.12
-          args:
-            - --api.insecure=true
-            - --providers.kubernetescrd=true
-            - --entrypoints.web.address=:80
-            - --entrypoints.websecure.address=:443
-            - --certificatesresolvers.localresolver.acme.tlschallenge=true
-            - --certificatesresolvers.localresolver.acme.email=you@example.com
-            - --certificatesresolvers.localresolver.acme.storage=/acme.json
+          image: traefik:v2.11
           ports:
-            - containerPort: 80
-              name: web
-              protocol: TCP
-            - containerPort: 443
-              name: websecure
-              protocol: TCP
-            - containerPort: 8080
-              name: admin
-              protocol: TCP
-          volumeMounts:
-            - name: acme-storage
-              mountPath: /acme.json
-              subPath: acme.json
-      volumes:
-        - name: acme-storage
-          emptyDir: {}
+            - name: web
+              containerPort: 80
+            - name: websecure
+              containerPort: 443
+            - name: dashboard
+              containerPort: 8080

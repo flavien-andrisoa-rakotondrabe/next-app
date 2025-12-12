@@ -88,7 +88,7 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:$VERSION
-          kubectl rollout status deployment/nextjs-deployment --timeout=300s
+          kubectl rollout status deployment/nextjs-deployment --timeout=600s
 
       - name: Deploy Traefik
         run: |
