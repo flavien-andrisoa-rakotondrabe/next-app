@@ -22,11 +22,17 @@ spec:
         - name: traefik
           image: traefik:v2.12
           args:
-            - --api.insecure=true # Dashboard HTTP
-            - --providers.kubernetescrd=true # Détection des Ingress CRD
+            - --api.insecure=true
+            - --providers.kubernetescrd=true
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
           ports:
-            - name: web
-              containerPort: 80
-            - nam
+            - containerPort: 80
+              name: web
+              protocol: TCP
+            - containerPort: 443
+              name: websecure
+              protocol: TCP
+            - containerPort: 8080
+              name: admin
+              protocol: TCP
