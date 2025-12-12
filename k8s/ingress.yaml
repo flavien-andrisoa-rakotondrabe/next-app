@@ -4,9 +4,11 @@ metadata:
   name: nextjs-ingress
   namespace: default
   annotations:
+    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: 'true'
+    traefik.ingress.kubernetes.io/router.tls.certresolver: localresolver
 spec:
-  ingressClassName: traefik
   rules:
     - host: my-doctorsnote.com
       http:

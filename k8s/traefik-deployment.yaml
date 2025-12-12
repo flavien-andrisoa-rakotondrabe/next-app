@@ -26,6 +26,9 @@ spec:
             - --providers.kubernetescrd=true
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
+            - --certificatesresolvers.localresolver.acme.tlschallenge=true
+            - --certificatesresolvers.localresolver.acme.email=you@example.com
+            - --certificatesresolvers.localresolver.acme.storage=/acme.json
           ports:
             - containerPort: 80
               name: web
@@ -36,3 +39,10 @@ spec:
             - containerPort: 8080
               name: admin
               protocol: TCP
+          volumeMounts:
+            - name: acme-storage
+              mountPath: /acme.json
+              subPath: acme.json
+      volumes:
+        - name: acme-storage
+          emptyDir: {}
