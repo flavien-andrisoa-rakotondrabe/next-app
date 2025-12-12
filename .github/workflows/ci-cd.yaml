@@ -16,6 +16,7 @@ jobs:
   # -----------------------------
   test:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -36,7 +37,8 @@ jobs:
   # -----------------------------
   build:
     runs-on: ubuntu-latest
-    needs: test # ne se lance que si tests réussissent
+    needs: test
+    if: github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -53,12 +55,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and tag Docker image
+      - name: Build Docker image
         run: |
           docker build --pull -t $DOCKER_IMAGE:$VERSION .
           docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
 
-      - name: Push Docker image to Docker Hub
+      - name: Push Docker image
         run: |
           docker push $DOCKER_IMAGE:$VERSION
           docker push $DOCKER_IMAGE:latest
@@ -68,7 +70,8 @@ jobs:
   # -----------------------------
   deploy:
     runs-on: self-hosted
-    needs: build # ne se lance que si build réussit
+    needs: build
+    if: github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -76,24 +79,25 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Apply Kubernetes manifests
+      - name: Deploy to Kubernetes
         run: |
-          # Deploy Next.js application
+          # Deploy Next.js
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
-
-          # Mettre à jour l'image du deployment avec la nouvelle version
           kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:$VERSION --record
-          kubectl rollout status deployment/nextjs-deployment --timeout=300s
 
           # Deploy Traefik (Ingress Controller + Service)
           kubectl apply -f k8s/traefik-deployment.yaml
           kubectl apply -f k8s/traefik-service.yaml
 
-          # Apply Ingress avec HTTPS pour my-doctorsnote.com
+          # Deploy Ingress avec HTTPS pour my-doctorsnote.com
           kubectl apply -f k8s/ingress.yaml
 
-      - name: Rollback on failure
+      - name: Rollout status
+        run: |
+          kubectl rollout status deployment/nextjs-deployment --timeout=300s
+
+      - name: Rollback if failed
         if: failure()
         run: |
           echo "❌ Échec du déploiement. Rollback..."
