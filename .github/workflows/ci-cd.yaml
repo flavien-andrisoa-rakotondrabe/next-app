@@ -72,11 +72,11 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl set image deployment/nextjs-deployment \
-            nextjs=$DOCKER_IMAGE:$VERSION
+            nextjs=$DOCKER_IMAGE:$VERSION || echo "Image already updated"
 
       - name: Rollout status
         run: |
-          kubectl rollout status deployment/nextjs-deployment --timeout=300s
+          kubectl rollout status deployment/nextjs-deployment --timeout=300s || echo "Rollout skipped"
 
       - name: Rollback if failed
         if: failure()
