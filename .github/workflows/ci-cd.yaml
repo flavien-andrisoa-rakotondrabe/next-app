@@ -69,8 +69,12 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
+          kubectl delete -f k8s/deployment.yaml
+          kubectl delete -f k8s/service.yaml
+
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
+
           kubectl set image deployment/nextjs-deployment \
             nextjs=$DOCKER_IMAGE:$VERSION || echo "Image already updated"
 
