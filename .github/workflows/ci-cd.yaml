@@ -47,14 +47,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         run: |
-          docker build --pull -t $DOCKER_IMAGE:$VERSION .
-          docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
-
-      - name: Push Docker image
-        run: |
-          docker push $DOCKER_IMAGE:$VERSION
+          docker build --pull -t $DOCKER_IMAGE:${{ env.VERSION }} .
+          docker push $DOCKER_IMAGE:${{ env.VERSION }}
+          docker tag $DOCKER_IMAGE:${{ env.VERSION }} $DOCKER_IMAGE:latest
           docker push $DOCKER_IMAGE:latest
 
   deploy:
@@ -72,15 +69,14 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/ingress.yaml
-          kubectl set image deployment/nextjs-deployment \
-            nextjs=$DOCKER_IMAGE:$VERSION
+          kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:${{ env.VERSION }} -n default
 
       - name: Rollout status
         run: |
-          kubectl rollout status deployment/nextjs-deployment --timeout=600s
+          kubectl rollout status deployment/nextjs-deployment -n default --timeout=300s
 
       - name: Rollback if failed
         if: failure()
         run: |
-          echo "❌ Échec du déploiement. Rollback..."
-          kubectl rollout undo deployment/nextjs-deployment
+          echo "❌ Déploiement échoué. Rollback..."
+          kubectl rollout undo deployment/nextjs-deployment -n default
