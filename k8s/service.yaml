@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: nextjs-service
 spec:
-  type: NodePort
   selector:
     app: nextjs
   ports:
-    - port: 3000 # port interne du service
-      targetPort: 3000 # port sur le pod
-      nodePort: 32000 # port exposé sur l’IP du node
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

@@ -69,18 +69,15 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl delete -f k8s/deployment.yaml
-          kubectl delete -f k8s/service.yaml
-
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
-
+          kubectl apply -f k8s/ingress.yaml
           kubectl set image deployment/nextjs-deployment \
-            nextjs=$DOCKER_IMAGE:$VERSION || echo "Image already updated"
+            nextjs=$DOCKER_IMAGE:$VERSION
 
       - name: Rollout status
         run: |
-          kubectl rollout status deployment/nextjs-deployment --timeout=300s || echo "Rollout skipped"
+          kubectl rollout status deployment/nextjs-deployment --timeout=300s
 
       - name: Rollback if failed
         if: failure()
