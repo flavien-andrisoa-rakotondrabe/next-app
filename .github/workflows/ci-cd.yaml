@@ -69,10 +69,20 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
+          echo "===== Déploiement de la version ${{ needs.build.outputs.VERSION }} ====="
+
+          # Remplacer la variable VERSION dans deployment.yaml et appliquer
           sed "s|\${VERSION}|${{ needs.build.outputs.VERSION }}|g" k8s/deployment.yaml | kubectl apply -f -
+
+          # Appliquer service et ingress
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/ingress.yaml
+
+          # Forcer la mise à jour de l'image
           kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:${{ needs.build.outputs.VERSION }} -n default
+
+          # Redémarrer le déploiement pour garantir que les pods prennent la nouvelle image
+          kubectl rollout restart deployment/nextjs-deployment -n default
 
       - name: Rollout status
         run: |
