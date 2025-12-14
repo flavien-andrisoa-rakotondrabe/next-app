@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: nextjs
-          image: flavienrak/next-app:latest
+          image: flavienrak/next-app:${VERSION}
           ports:
             - containerPort: 3000
           resources:
