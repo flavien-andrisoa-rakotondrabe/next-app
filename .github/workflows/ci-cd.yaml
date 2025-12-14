@@ -70,12 +70,6 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          echo "===== Déploiement de la version ${{ needs.build.outputs.VERSION }} ====="
-
-          echo "===== Deployment YAML ====="
-          sed "s|\${VERSION}|${{ needs.build.outputs.VERSION }}|g" k8s/deployment.yaml
-          echo "==========================="
-
           sed "s|\${VERSION}|${{ needs.build.outputs.VERSION }}|g" k8s/deployment.yaml | kubectl apply -f -
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/ingress.yaml
