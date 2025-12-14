@@ -41,6 +41,9 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
+      - name: Show version
+        run: echo "VERSION=${{ env.VERSION }}"
+
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -66,15 +69,23 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          export VERSION="${{ env.VERSION }}"
+          echo "===== Déploiement de la version ${{ env.VERSION }} ====="
 
+          # Affiche le YAML avec la version remplacée pour debug
           echo "===== Deployment YAML ====="
-          sed "s|\${VERSION}|$VERSION|g" k8s/deployment.yaml
+          sed "s|\${VERSION}|${{ env.VERSION }}|g" k8s/deployment.yaml
           echo "==========================="
 
-          sed "s|\${VERSION}|$VERSION|g" k8s/deployment.yaml | kubectl apply -f -
+          # Applique le YAML avec la version correcte
+          sed "s|\${VERSION}|${{ env.VERSION }}|g" k8s/deployment.yaml | kubectl apply -f -
+
+          # Applique service et ingress
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/ingress.yaml
+
+          # Met à jour l'image du déploiement
+          kubectl set image deployment/nextjs-deployment \
+            nextjs=flavienrak/next-app:${{ env.VERSION }} -n default
 
       - name: Rollout status
         run: |
