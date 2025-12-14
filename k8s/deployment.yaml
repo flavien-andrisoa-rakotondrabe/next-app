@@ -17,3 +17,6 @@ spec:
           image: flavienrak/next-app:latest
           ports:
             - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
