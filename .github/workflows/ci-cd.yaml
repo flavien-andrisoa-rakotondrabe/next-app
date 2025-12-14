@@ -60,36 +60,38 @@ jobs:
   deploy:
     runs-on: self-hosted
     needs: build
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v3
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Deploy to Kubernetes
+      - name: Deploy to Kubernetes with RBAC
         run: |
-          echo "===== Déploiement de la version ${{ needs.build.outputs.VERSION }} ====="
+          echo "===== Déploiement de la version ${{ needs.build.outputs.VERSION }} via ServiceAccount ci-cd-sa ====="
 
-          # Remplacer la variable VERSION dans deployment.yaml et appliquer
-          sed "s|\${VERSION}|${{ needs.build.outputs.VERSION }}|g" k8s/deployment.yaml | kubectl apply -f -
+          # Déploiement du Deployment avec version
+          sed "s|\${VERSION}|${{ needs.build.outputs.VERSION }}|g" k8s/deployment.yaml \
+            | kubectl apply -f - --as=system:serviceaccount:default:ci-cd-sa
 
-          # Appliquer service et ingress
-          kubectl apply -f k8s/service.yaml
-          kubectl apply -f k8s/ingress.yaml
+          # Déploiement Service et Ingress via ServiceAccount
+          kubectl apply -f k8s/service.yaml --as=system:serviceaccount:default:ci-cd-sa
+          kubectl apply -f k8s/ingress.yaml --as=system:serviceaccount:default:ci-cd-sa
 
-          # Forcer la mise à jour de l'image
-          kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:${{ needs.build.outputs.VERSION }} -n default
-
-          # Redémarrer le déploiement pour garantir que les pods prennent la nouvelle image
-          kubectl rollout restart deployment/nextjs-deployment -n default
+          # Mise à jour de l'image pour forcer rollout
+          kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:${{ needs.build.outputs.VERSION }} \
+            -n default \
+            --as=system:serviceaccount:default:ci-cd-sa
 
       - name: Rollout status
         run: |
-          kubectl rollout status deployment/nextjs-deployment -n default --timeout=300s
+          kubectl rollout status deployment/nextjs-deployment -n default --timeout=300s \
+            --as=system:serviceaccount:default:ci-cd-sa
 
       - name: Rollback if failed
         if: failure()
         run: |
           echo "❌ Déploiement échoué. Rollback..."
-          kubectl rollout undo deployment/nextjs-deployment -n default
+          kubectl rollout undo deployment/nextjs-deployment -n default \
+            --as=system:serviceaccount:default:ci-cd-sa
+
