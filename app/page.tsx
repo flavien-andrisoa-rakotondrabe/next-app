@@ -44,7 +44,7 @@ export default function Home() {
           <div className="relative h-[31.5rem] flex flex-col justify-center gap-7 items-center bg-img">
             <div className="flex flex-col items-center gap-2">
               <h1 className="text-[50px] text-center font-semibold leading-[60px]">
-                Your Doctor's Note <br />
+                En francais <br />
                 In 1 Minute, for $29,99!
               </h1>
               <svg
