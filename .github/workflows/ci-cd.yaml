@@ -61,6 +61,12 @@ jobs:
     runs-on: self-hosted
     needs: build
 
+    env:
+      SA: ci-cd-sa
+      NAMESPACE: default
+      IMAGE: flavienrak/next-app
+      VERSION: ${{ needs.build.outputs.VERSION }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -68,38 +74,40 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Deploy to Kubernetes (RBAC CI/CD)
-        env:
-          VERSION: ${{ needs.build.outputs.VERSION }}
-          IMAGE: flavienrak/next-app
+      - name: Deploy Deployment, Service & Ingress
         run: |
-          echo "===== Déploiement de la version ${VERSION} via ServiceAccount ci-cd-sa ====="
+          echo "===== Déploiement de la version ${VERSION} via ServiceAccount ${SA} ====="
 
-          # Injection de la version dans le manifest
+          # Injection de la version dans le manifest et application
           sed "s|\${VERSION}|${VERSION}|g" k8s/deployment.yaml | \
             kubectl apply -f - \
-              --namespace default \
-              --as=system:serviceaccount:default:ci-cd-sa
+              --namespace ${NAMESPACE} \
+              --as=system:serviceaccount:${NAMESPACE}:${SA}
 
           kubectl apply -f k8s/service.yaml \
-            --namespace default \
-            --as=system:serviceaccount:default:ci-cd-sa
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
 
           kubectl apply -f k8s/ingress.yaml \
-            --namespace default \
-            --as=system:serviceaccount:default:ci-cd-sa
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
+
+          # Déploiement du HPA
+          kubectl apply -f k8s/hpa.yaml \
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
 
       - name: Wait for rollout
         run: |
           kubectl rollout status deployment/nextjs-deployment \
-            --namespace default \
+            --namespace ${NAMESPACE} \
             --timeout=300s \
-            --as=system:serviceaccount:default:ci-cd-sa
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
 
       - name: Rollback if failed
         if: failure()
         run: |
           echo "❌ Déploiement échoué – rollback"
           kubectl rollout undo deployment/nextjs-deployment \
-            --namespace default \
-            --as=system:serviceaccount:default:ci-cd-sa
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
