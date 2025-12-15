@@ -60,38 +60,54 @@ jobs:
   deploy:
     runs-on: self-hosted
     needs: build
+
+    env:
+      SA: ci-cd-sa
+      NAMESPACE: default
+      IMAGE: flavienrak/next-app
+      VERSION: ${{ needs.build.outputs.VERSION }}
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Deploy to Kubernetes with RBAC
+      - name: Deploy Deployment, Service & Ingress
         run: |
-          echo "===== Déploiement de la version ${{ needs.build.outputs.VERSION }} via ServiceAccount ci-cd-sa ====="
+          echo "===== Déploiement de la version ${VERSION} via ServiceAccount ${SA} ====="
 
-          # Déploiement du Deployment avec version
-          sed "s|\${VERSION}|${{ needs.build.outputs.VERSION }}|g" k8s/deployment.yaml \
-            | kubectl apply -f - --as=system:serviceaccount:default:ci-cd-sa
+          # Injection de la version dans le manifest et application
+          sed "s|\${VERSION}|${VERSION}|g" k8s/deployment.yaml | \
+            kubectl apply -f - \
+              --namespace ${NAMESPACE} \
+              --as=system:serviceaccount:${NAMESPACE}:${SA}
 
-          # Déploiement Service et Ingress via ServiceAccount
-          kubectl apply -f k8s/service.yaml --as=system:serviceaccount:default:ci-cd-sa
-          kubectl apply -f k8s/ingress.yaml --as=system:serviceaccount:default:ci-cd-sa
+          kubectl apply -f k8s/service.yaml \
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
 
-          # Mise à jour de l'image pour forcer rollout
-          kubectl set image deployment/nextjs-deployment nextjs=$DOCKER_IMAGE:${{ needs.build.outputs.VERSION }} \
-            -n default \
-            --as=system:serviceaccount:default:ci-cd-sa
+          kubectl apply -f k8s/ingress.yaml \
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
 
-      - name: Rollout status
+          # Déploiement du HPA
+          kubectl apply -f k8s/hpa.yaml \
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
+
+      - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/nextjs-deployment -n default --timeout=300s \
-            --as=system:serviceaccount:default:ci-cd-sa
+          kubectl rollout status deployment/nextjs-deployment \
+            --namespace ${NAMESPACE} \
+            --timeout=300s \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
 
       - name: Rollback if failed
         if: failure()
         run: |
-          echo "❌ Déploiement échoué. Rollback..."
-          kubectl rollout undo deployment/nextjs-deployment -n default \
-            --as=system:serviceaccount:default:ci-cd-sa
-
+          echo "❌ Déploiement échoué – rollback"
+          kubectl rollout undo deployment/nextjs-deployment \
+            --namespace ${NAMESPACE} \
+            --as=system:serviceaccount:${NAMESPACE}:${SA}
