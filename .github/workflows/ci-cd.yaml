@@ -8,13 +8,6 @@ on:
   push:
     branches: ["main"] # CD
 
-env:
-  DOCKER_IMAGE: ${{ vars.DOCKER_IMAGE }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  NAMESPACE: ${{ vars.NAMESPACE }}
-  SA: ${{ vars.SA }}
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -51,15 +44,15 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: $DOCKERHUB_USERNAME
-          password: $DOCKERHUB_TOKEN
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
         run: |
-          docker build --pull -t $DOCKER_IMAGE:$VERSION .
-          docker push $DOCKER_IMAGE:$VERSION
-          docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
-          docker push $DOCKER_IMAGE:latest
+          docker build --pull -t ${{ vars.DOCKER_IMAGE }}:$VERSION .
+          docker push ${{ vars.DOCKER_IMAGE }}:$VERSION
+          docker tag ${{ vars.DOCKER_IMAGE }}:$VERSION ${{ vars.DOCKER_IMAGE }}:latest
+          docker push ${{ vars.DOCKER_IMAGE }}:latest
 
   deploy:
     runs-on: self-hosted
@@ -77,38 +70,38 @@ jobs:
 
       - name: Deploy Deployment, Service & Ingress
         run: |
-          echo "===== Déploiement de la version ${VERSION} via ServiceAccount $SA ====="
+          echo "===== Déploiement de la version ${VERSION} via ServiceAccount ${{ vars.SA }} ====="
 
           # Injection de la version dans le manifest et application
           sed "s|\${VERSION}|${VERSION}|g" k8s/deployment.yaml | \
             kubectl apply -f - \
-              --namespace $NAMESPACE \
-              --as=system:serviceaccount:$NAMESPACE:$SA
+              --namespace ${{ vars.NAMESPACE }} \
+              --as=system:serviceaccount:${{ vars.NAMESPACE }}:${{ vars.SA }}
 
           kubectl apply -f k8s/service.yaml \
-            --namespace $NAMESPACE \
-            --as=system:serviceaccount:$NAMESPACE:$SA
+            --namespace ${{ vars.NAMESPACE }} \
+            --as=system:serviceaccount:${{ vars.NAMESPACE }}:${{ vars.SA }}
 
           kubectl apply -f k8s/ingress.yaml \
-            --namespace $NAMESPACE \
-            --as=system:serviceaccount:$NAMESPACE:$SA
+            --namespace ${{ vars.NAMESPACE }} \
+            --as=system:serviceaccount:${{ vars.NAMESPACE }}:${{ vars.SA }}
 
           # Déploiement du HPA
           kubectl apply -f k8s/hpa.yaml \
-            --namespace $NAMESPACE \
-            --as=system:serviceaccount:$NAMESPACE:$SA
+            --namespace ${{ vars.NAMESPACE }} \
+            --as=system:serviceaccount:${{ vars.NAMESPACE }}:${{ vars.SA }}
 
       - name: Wait for rollout
         run: |
           kubectl rollout status deployment/nextjs-deployment \
-            --namespace $NAMESPACE \
+            --namespace ${{ vars.NAMESPACE }} \
             --timeout=300s \
-            --as=system:serviceaccount:$NAMESPACE:$SA
+            --as=system:serviceaccount:${{ vars.NAMESPACE }}:${{ vars.SA }}
 
       - name: Rollback if failed
         if: failure()
         run: |
           echo "❌ Déploiement échoué – rollback"
           kubectl rollout undo deployment/nextjs-deployment \
-            --namespace $NAMESPACE \
-            --as=system:serviceaccount:$NAMESPACE:$SA
+            --namespace ${{ vars.NAMESPACE }} \
+            --as=system:serviceaccount:${{ vars.NAMESPACE }}:${{ vars.SA }}
